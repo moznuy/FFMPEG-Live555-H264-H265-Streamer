@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.13)
 project(Test1)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -78,7 +78,6 @@ target_compile_options(live555Example PRIVATE ${FFMPEG_CFLAGS_OTHER})
 if(NOT DEFINED ENV{LIVE555})
     message(FATAL_ERROR "You must set LIVE555 environment variable")
 endif()
-message("LIVE555 path: $ENV{LIVE555}")
 message("LIVE555 path: $ENV{LIVE555}")
 target_link_options(live555Example PRIVATE -L$ENV{LIVE555}/lib)
 target_link_libraries(live555Example PRIVATE groupsock liveMedia BasicUsageEnvironment UsageEnvironment)

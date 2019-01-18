@@ -432,7 +432,7 @@ void FFMPEG::SetupCodec(const char *filename, int codec_id)
 		m_c->bit_rate = m_AVIMOV_BPS;			//Bits Per Second 
 
 		if ((codec_id == AV_CODEC_ID_H264) || (codec_id == AV_CODEC_ID_H265)){
-			av_opt_set(m_c->priv_data, "preset", "veryfast", 0); //change between ultrafast,superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
+			av_opt_set(m_c->priv_data, "preset", "ultrafast", 0); //change between ultrafast,superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
 		}
 
 		av_opt_set_int(m_c->priv_data, "slice-max-size", m_RTP_Payload_Size, 0); //Replaces RTP Payload size
