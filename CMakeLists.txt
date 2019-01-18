@@ -3,6 +3,9 @@ project(Test1)
 
 set(CMAKE_CXX_STANDARD 11)
 
+if(NOT DEFINED ENV{FFMPEG_PATH})
+    message(FATAL_ERROR "You must set FFMPEG_PATH environment variable")
+endif()
 message("Additional path: $ENV{FFMPEG_PATH}")
 set(CMAKE_PREFIX_PATH "$ENV{FFMPEG_PATH}")
 
@@ -72,6 +75,9 @@ target_compile_options(live555Example PRIVATE ${FFMPEG_CFLAGS_OTHER})
 
 
 # LIVE555
+if(NOT DEFINED ENV{LIVE555})
+    message(FATAL_ERROR "You must set LIVE555 environment variable")
+endif()
 message("LIVE555 path: $ENV{LIVE555}")
 message("LIVE555 path: $ENV{LIVE555}")
 target_link_options(live555Example PRIVATE -L$ENV{LIVE555}/lib)
