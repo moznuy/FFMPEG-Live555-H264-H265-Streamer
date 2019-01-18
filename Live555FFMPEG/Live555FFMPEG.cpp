@@ -5,9 +5,16 @@
 //
 //==========================================================================
 
-#include "stdafx.h"
 #include "FFMPEGClass.h"
-#include "libavcodec\avcodec.h"
+#include "libavcodec/avcodec.h"
+#include <csignal>
+
+volatile bool quit = false;
+void my_handler(int s){
+	printf("Caught signal %d\n",s);
+	quit = true;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -46,24 +53,56 @@ int main(int argc, char* argv[])
 	*/
 
 	//Start Encoding and Streaming
+	mFFMPEG->SetRTSPPort(8555);
 	mFFMPEG->Start();
+
+	struct sigaction sigIntHandler{};
+
+	sigIntHandler.sa_handler = my_handler;
+	sigemptyset(&sigIntHandler.sa_mask);
+	sigIntHandler.sa_flags = 0;
+	sigaction(SIGINT, &sigIntHandler, NULL);
+	sigaction(SIGTERM, &sigIntHandler, NULL);
 
 	//Temporary Frame
 	unsigned char * TempRGBFrame = new unsigned char[mVidWidth * mVidHeight * 3];
 
 	//Main Random Frame Generation loop
-	while (1) {
-		for (int i = 0; i < mVidWidth * mVidHeight * 3; i++) {
-			TempRGBFrame[i] = rand() % 256;
+
+	int circleX = 50;
+	int circleY = 50;
+	int circleR = 40;
+	int vx = 4;
+	int vy = 3;
+	while (!quit) {
+		for (int i = 0; i < mVidWidth * mVidHeight; i++) {
+		    int x = i % mVidWidth;
+		    int y = i / mVidWidth;
+            TempRGBFrame[i * 3 + 0] = (3 * x + y) % 256;  // R
+            TempRGBFrame[i * 3 + 1] = (2 * x + 5 * y) % 256; // G
+            TempRGBFrame[i * 3 + 2] = (4 * x + 3 * y) % 256; // B
+            if ((x - circleX) * (x - circleX) + (y - circleY) * (y - circleY) <= circleR * circleR) {
+				TempRGBFrame[i * 3 + 0] = 0;
+				TempRGBFrame[i * 3 + 1] = 0;
+				TempRGBFrame[i * 3 + 2] = 0;
+            }
+//			TempRGBFrame[i] = (i/3) * 5 / 2 % 256;
 		}
 		mFFMPEG->SendNewFrame((char*)TempRGBFrame);
-		Sleep(1);
+		circleX+=vx;
+		circleY+=vy;
+		if (circleX + circleR > mVidWidth || circleX - circleR < 0 )
+			vx *= -1;
+		if (circleY + circleR > mVidHeight || circleY - circleR < 0 )
+			vy *= -1;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+	printf("Exiting");
 
 	//Clean up
 	mFFMPEG->Stop();
 	while (!mFFMPEG->IsDone()) {
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	delete mFFMPEG;
 	delete[] TempRGBFrame;

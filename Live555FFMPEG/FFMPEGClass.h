@@ -15,6 +15,8 @@
 #pragma once
 
 #include <string>
+#include <mutex>
+#include <thread>
 
 typedef struct {
 	long DataLength;
@@ -85,7 +87,7 @@ public:
 	int GetPriority() const;
 
 	bool IsDone();
-	DWORD GetReturnValue();
+	uint32_t GetReturnValue();
 
 	int GetVideoWidth(void) {return m_AVIMOV_WIDTH;}
 	int GetVideoHeight(void) {return m_AVIMOV_HEIGHT;}
@@ -121,26 +123,29 @@ public:
 
 private:
 	//Mutex Functions
-	int MUTEX_LOCK(HANDLE, DWORD,std::string);
+	int MUTEX_LOCK(std::timed_mutex &, uint32_t, std::string);
 
-	inline int MUTEX_LOCK( HANDLE * m_Mutex ) {
-		return (WaitForSingleObject( *m_Mutex, 10 ) == WAIT_OBJECT_0 ? 1 : 0);
+	inline int MUTEX_LOCK( std::timed_mutex * m_Mutex ) {
+		return m_Mutex->try_lock_for(std::chrono::milliseconds(10))? 1 : 0;
+//		return (WaitForSingleObject( *m_Mutex, 10 ) == WAIT_OBJECT_0 ? 1 : 0);
 	}
 
-	inline int MUTEX_UNLOCK( HANDLE * m_Mutex ) {
-		return (ReleaseSemaphore( *m_Mutex , 1 , NULL) == 0);
+	inline int MUTEX_UNLOCK( std::timed_mutex * m_Mutex ) {
+		m_Mutex->unlock();
+		return 1;
+//		return (ReleaseSemaphore( *m_Mutex , 1 , NULL) == 0);
 	}
 
-	HANDLE mFrameMtx;
-	HANDLE mLiveMtx;
+	std::timed_mutex mFrameMtx;
+	std::timed_mutex mLiveMtx;
 
 	int mVideoWidth;
 	int mVideoHeight;
 
 protected:
 
-	static unsigned long WINAPI Link( void *aParam );
-	virtual DWORD Function();
+	static unsigned long Link( void *aParam );
+	virtual uint32_t Function();
 	bool IsStopping() const;
 
 private:
@@ -168,11 +173,12 @@ private:
 
 	AVPacket pkt;
 
-	HANDLE * m_FrameStructMutex;
-	HANDLE mHandle;
-	DWORD mID;
+	std::timed_mutex *m_FrameStructMutex;
+//	HANDLE mHandle;
+	std::thread mHandle;
+	uint32_t mID;
 	bool mStop;
-	DWORD mReturnValue;	
+	uint32_t mReturnValue;
 
 //#if defined(H264ENCODING) || defined(H265ENCODING)
 	char * InitialPacketBuff;
@@ -217,7 +223,7 @@ private:
 	AVCodec *m_video_codec;
     AVPicture m_src_picture, m_dst_picture;
 	double PCFreq;
-	__int64 CounterStart;
+	int64_t CounterStart;
 	void StartCounter();
 	double GetCounter();
 

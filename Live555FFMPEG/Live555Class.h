@@ -2,7 +2,8 @@
 
 #include "Live555UsageEnv.h"
 #include "FFMPEGClass.h"
-#include <string.h>
+#include <cstring>
+#include <thread>
 
 class Live555Class
 {
@@ -18,23 +19,23 @@ public:
 	int GetPriority() const;
 
 	bool IsDone();
-	DWORD GetReturnValue();
+	uint32_t GetReturnValue();
 
 	void SetRTSPPort(int PortNo) {
 		RTSPPort = PortNo;
 	}
 
 	void SetRTSPUserandPassword(char * Username, char * Password) {
-		strcpy_s(RTSPUser, Username);
-		strcpy_s(RTSPPass, Password);
+		strcpy(RTSPUser, Username);
+		strcpy(RTSPPass, Password);
 	}
 
 	void SetRTSPAddress(char * streamname) {
-		strcpy_s(RTSP_Address, streamname);
+		strcpy(RTSP_Address, streamname);
 	}
 
 	void SetRTSPDescription(char * streamdescription) {
-		strcpy_s(RTSP_Description, streamdescription);
+		strcpy(RTSP_Description, streamdescription);
 	}
 
 	void SetEncoder(int m_enc) {
@@ -51,8 +52,8 @@ public:
 	}
 protected:
 
-	static unsigned long WINAPI Link( void *aParam );
-	virtual DWORD Function();
+	static unsigned long Link( void *aParam );
+	virtual uint32_t Function();
 	bool IsStopping() const;
 
 private:
@@ -67,11 +68,12 @@ private:
 	int m_multicast;
 	int m_rtpPortNum;
 
-	DWORD LiveSingleStart();
-	HANDLE mHandle;
-	DWORD mID;
+	uint32_t LiveSingleStart();
+//	HANDLE mHandle;
+	std::thread mHandle;
+	uint32_t mID;
 	bool mStop;
-	DWORD mReturnValue;	
+	uint32_t mReturnValue;
 	FFMPEG * m_Encoder;
 	char Stop_RTSP_Loop;
 };

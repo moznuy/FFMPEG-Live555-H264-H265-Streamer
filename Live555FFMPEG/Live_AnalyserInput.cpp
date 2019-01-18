@@ -4,7 +4,6 @@
 //    - Choose between multicast and unicast
 //==========================================================================
 
-#include "stdafx.h"
 #include "Live_AnalyserInput.h"
 #include "Live_AnalyserSource.h"
 

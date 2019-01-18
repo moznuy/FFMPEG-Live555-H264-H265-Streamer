@@ -28,11 +28,11 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // (depending on the features of the particular device).
 // Implementation
 
-#include "stdafx.h"
 #include "Live_AnalyserSource.h"
 #include <GroupsockHelper.hh> // for "gettimeofday()"
 #include "FFMPEGClass.h"
-#include <atltrace.h>
+//#include <atltrace.h>
+
 AnalyserSource* AnalyserSource::createNew(UsageEnvironment& env, FFMPEG * E_Source) {
   return new AnalyserSource(env, E_Source);
 }
@@ -155,7 +155,8 @@ void AnalyserSource::deliverFrame() {
 		if (newFrameSize > fMaxSize) {
 		  fFrameSize = fMaxSize;
 		  fNumTruncatedBytes = newFrameSize - fMaxSize;
-		  __debugbreak();
+//		  __debugbreak();
+            throw 4;
 		} else {
 		  fFrameSize = newFrameSize;
 		}
@@ -178,7 +179,7 @@ void AnalyserSource::deliverFrame() {
   else {
 	  //Close our stream
 	  Encoding_Source->ReleaseFrame();
-	  __debugbreak();
+      throw 5;
 	  handleClosure(this);
   }
 

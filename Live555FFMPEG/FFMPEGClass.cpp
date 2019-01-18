@@ -16,7 +16,6 @@
 
 //=============================
 // Includes
-#include "stdafx.h"
 #include "FFMPEGClass.h"
 #include "Definitions.h"
 #include "MutexUtility.h"
@@ -31,8 +30,7 @@
 // Create any necessary blocks of memory and init variables
 //-----------------------------
 FFMPEG::FFMPEG()
-	: mHandle( INVALID_HANDLE_VALUE )
-	, mID( 0 )
+	: mID( 0 )
 	, mStop( false )
 	, mReturnValue ( 0 )
 {
@@ -57,12 +55,12 @@ FFMPEG::FFMPEG()
 	mFrameNo=0;
 	mFrameStructureSent=-1;
 	mFrameStructure=new FrameStructure[_NOBUFFFRAMES];
-	m_FrameStructMutex = new HANDLE[_NOBUFFFRAMES];
+	m_FrameStructMutex = new std::timed_mutex[_NOBUFFFRAMES];
 	for (int i=0;i<_NOBUFFFRAMES;i++){
 		mFrameStructure[i].dataPointer=new char[100000]; //We can do this since the rtp packet size is limited to 12000;
 		mFrameStructure[i].FrameID=-1;
 		mFrameStructure[i].dataSize=0;
-		m_FrameStructMutex[i] = CreateSemaphore(NULL,1,1,NULL);
+//		m_FrameStructMutex[i] = CreateSemaphore(NULL,1,1,NULL);
 	}
 	m_LastSentFrameID=0;
 	
@@ -85,8 +83,8 @@ FFMPEG::FFMPEG()
 	m_AVIMutexWriteFrame=false;
 	
 	//Create semaphores not Mutexes (in windows land semaphores are equivalent to Mutexes)
-	mFrameMtx=CreateSemaphore(NULL,1,1,NULL);
-	mLiveMtx=CreateSemaphore(NULL,1,1,NULL);
+//	mFrameMtx=CreateSemaphore(NULL,1,1,NULL);
+//	mLiveMtx=CreateSemaphore(NULL,1,1,NULL);
 
 	avcodec_register_all();
 
@@ -172,7 +170,7 @@ FFMPEG::~FFMPEG()
 	delete [] mInternalFrameBuff1;
 	delete [] mInternalFrameBuff2;
 	delete [] m_FrameBufferLive555;
-	if ( mHandle != INVALID_HANDLE_VALUE )
+	if ( mHandle.joinable() )
 	{
 		Stop();
 	}
@@ -183,26 +181,28 @@ FFMPEG::~FFMPEG()
 // ==========================================================================
 void FFMPEG::Start()
 {
-	mHandle = ::CreateThread(
-		NULL,				// Security attributes
-		0,					// Stack size, 0 is default
-		Link,				// Start address
-		this,				// Parameter
-		0,					// Creation flags
-		&mID );				// Thread ID
+	mHandle = std::thread(Link, this);
+//	mHandle = ::CreateThread(
+//		NULL,				// Security attributes
+//		0,					// Stack size, 0 is default
+//		Link,				// Start address
+//		this,				// Parameter
+//		0,					// Creation flags
+//		&mID );				// Thread ID
 }
 
 // ==========================================================================
 void FFMPEG::Stop()
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+	ASSERT( mHandle.joinable() );
 
 	mStop = true;
-	DWORD lRetVal = ::WaitForSingleObject( mHandle, 10000 );
-	ASSERT( lRetVal != WAIT_TIMEOUT  );
-
-	::CloseHandle( mHandle );
-	mHandle = INVALID_HANDLE_VALUE;
+	mHandle.join();
+//	uint32_t lRetVal = ::WaitForSingleObject( mHandle, 10000 );
+//	ASSERT( lRetVal != WAIT_TIMEOUT  );
+//
+//	::CloseHandle( mHandle );
+//	mHandle = INVALID_HANDLE_VALUE;
 
 	mID = 0;
 }
@@ -210,38 +210,33 @@ void FFMPEG::Stop()
 // ==========================================================================
 void FFMPEG::SetPriority( int aPriority )
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
-	::SetThreadPriority( mHandle, aPriority );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	::SetThreadPriority( mHandle, aPriority );
 }
 
 // ==========================================================================
 int FFMPEG::GetPriority() const
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
-	return ::GetThreadPriority( mHandle );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	return ::GetThreadPriority( mHandle );
+	return 1;
 }
 
 // ==========================================================================
 bool FFMPEG::IsStopping() const
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
 	return mStop;
 }
 
 // ==========================================================================
 bool FFMPEG::IsDone()
 {
-	if ( ( mHandle == INVALID_HANDLE_VALUE ) ||
-		 ( mID == 0 ) )
-	{
-		return true;
-	}
-
-	return ( ::WaitForSingleObject( mHandle, 0 ) == WAIT_OBJECT_0 );
+	return mID == 0;
 }
 
 // ==========================================================================
-unsigned long WINAPI FFMPEG::Link( void *aParam )
+unsigned long FFMPEG::Link( void *aParam )
 {
 	FFMPEG *lThis = reinterpret_cast<FFMPEG *>( aParam );
 	lThis->mReturnValue = lThis->Function();
@@ -249,7 +244,7 @@ unsigned long WINAPI FFMPEG::Link( void *aParam )
 }
 
 // ==========================================================================
-DWORD FFMPEG::GetReturnValue()
+uint32_t FFMPEG::GetReturnValue()
 {
 	return mReturnValue;
 }
@@ -267,7 +262,7 @@ void FFMPEG::LoadSQLDatabase(){
 }
 
 // ==========================================================================
-DWORD FFMPEG::Function()
+uint32_t FFMPEG::Function()
 {
 	//Some inits
 	int mFuncFPS=25;
@@ -342,12 +337,12 @@ DWORD FFMPEG::Function()
 			MUTEX_UNLOCK(&mFrameMtx);
 		}
 
-		Sleep(1);
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 
 	//Clean up
 	mLive555Class->Stop();
-	while(!mLive555Class->IsDone()) {Sleep(1);}
+	while(!mLive555Class->IsDone()) {std::this_thread::sleep_for(std::chrono::milliseconds(1));}
 	CloseVideo();
 
 	return 0;
@@ -356,20 +351,24 @@ DWORD FFMPEG::Function()
 //use performance counters instead of sleeps (much more accurate)
 void FFMPEG::StartCounter()
 {
-    LARGE_INTEGER li;
-	if (!QueryPerformanceFrequency(&li)) {
-//		TRACE("\nPerformance Counter Failed\n");
-	}
-    PCFreq = double(li.QuadPart)/1000.0;
-
-    QueryPerformanceCounter(&li);
-    CounterStart = li.QuadPart;
+//    LARGE_INTEGER li;
+//	if (!QueryPerformanceFrequency(&li)) {
+////		TRACE("\nPerformance Counter Failed\n");
+//	}
+//    PCFreq = double(li.QuadPart)/1000.0;
+//
+//    QueryPerformanceCounter(&li);
+//    CounterStart = li.QuadPart;
 }
 double FFMPEG::GetCounter()
 {
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    return double(li.QuadPart-CounterStart)/PCFreq;
+//    LARGE_INTEGER li;
+//    QueryPerformanceCounter(&li);
+
+	timespec now{};
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	return now.tv_sec + now.tv_nsec / 1000000000.0;
+//    return double(li.QuadPart-CounterStart)/PCFreq;
 }
 
 //=============================
@@ -565,13 +564,15 @@ void FFMPEG::WriteFrame(void){
 		if ((m_selected_encoder==AV_CODEC_ID_H265) || (m_selected_encoder==AV_CODEC_ID_H264)) {
 
 			if (INT_MAX<10000000) {
-				__debugbreak();
+//				__debugbreak();
+				throw 1;
 			}
 
 			if (InitialPacketBuffSize + pkt.size>10000000)  {
 				//We should have never got here...
 				InitialPacketBuffSize = 0;
-				__debugbreak();
+//				__debugbreak();
+				throw 2;
 				//Something VERY VERY Bad is about to happen...
 			}
 			memcpy(&InitialPacketBuff[InitialPacketBuffSize], pkt.data, pkt.size);
@@ -613,7 +614,7 @@ void FFMPEG::WriteFrame(void){
 					mFrameStructureSent = (mFrameStructureSent + 1) % _NOBUFFFRAMES;
 
 					//DO NOT CHANGE THIS TO ANYTHING BUT INFINITE, otherwise frames will be corrupted
-					if (MUTEX_LOCK(m_FrameStructMutex[mFrameStructureSent], INFINITE, __LOGMUTEXFUNCTION__)) {
+					if (MUTEX_LOCK(m_FrameStructMutex[mFrameStructureSent], (uint32_t)-1, __LOGMUTEXFUNCTION__)) {
 
 						if (mFrameStructure[mFrameStructureSent].dataSize != 0) {
 							//__debugbreak();
@@ -659,7 +660,7 @@ void FFMPEG::WriteFrame(void){
 			mFrameStructureSent=(mFrameStructureSent+1)%_NOBUFFFRAMES;
 
 			//DO NOT CHANGE THIS TO ANYTHING BUT INFINITE, otherwise frames will be corrupted
-			if (MUTEX_LOCK(m_FrameStructMutex[mFrameStructureSent], INFINITE, __LOGMUTEXFUNCTION__)) {
+			if (MUTEX_LOCK(m_FrameStructMutex[mFrameStructureSent], (uint32_t)-1, __LOGMUTEXFUNCTION__)) {
 
 				if (mFrameStructure[mFrameStructureSent].dataSize != 0) {
 					//__debugbreak();
@@ -714,32 +715,34 @@ void FFMPEG::WriteFrame(void){
 }
 
 
-int FFMPEG::MUTEX_LOCK( HANDLE m_Mutex, DWORD atimeout, std::string functionname ) {
+int FFMPEG::MUTEX_LOCK( std::timed_mutex &m_Mutex, uint32_t atimeout, std::string functionname ) {
 	//if timeout is infinite then log a locked up thread
-	if (atimeout==INFINITE) {
+	if (atimeout==-1) {
 		//Wait 60 seconds for a lock
-		int ret = (WaitForSingleObject( m_Mutex, 60000 ) == WAIT_OBJECT_0 ? 1 : 0);
+		bool ret = m_Mutex.try_lock_for(std::chrono::minutes(1));
 
 		//Check if we got a lock
-		if (ret==1) {
+		if (ret) {
 			//We got a lock so it's okay
-			return ret;
+			return 1;
 		}
 		else {
 
 			//Stop so we know something went wrong
-			__debugbreak();
+//			__debugbreak();
+			throw 3;
 
-			//Log the error
-			functionname+=" - Mutex Lock Failed (INFINITE Lock)";
-			//mMainDlg->SetNewLogEntry(functionname);
-
-			//Wait infinitely
-			return (WaitForSingleObject( m_Mutex, atimeout ) == WAIT_OBJECT_0 ? 1 : 0);	
+//			//Log the error
+//			functionname+=" - Mutex Lock Failed (INFINITE Lock)";
+//			//mMainDlg->SetNewLogEntry(functionname);
+//
+//			//Wait infinitely
+//			return (WaitForSingleObject( m_Mutex, atimeout ) == WAIT_OBJECT_0 ? 1 : 0);
 		}
 	}
 	else {
-		return (WaitForSingleObject( m_Mutex, atimeout ) == WAIT_OBJECT_0 ? 1 : 0);
+		return m_Mutex.try_lock_for(std::chrono::milliseconds(atimeout));
+//		return (WaitForSingleObject( m_Mutex, atimeout ) == WAIT_OBJECT_0 ? 1 : 0);
 	}
 }
 
@@ -751,7 +754,7 @@ int FFMPEG::MUTEX_LOCK( HANDLE m_Mutex, DWORD atimeout, std::string functionname
 void FFMPEG::SetupVideo(char * filename, int Width, int Height, int FPS, int GOB, int BitPerSecond, int RTPPSize) {
 	
 	//Copy filename to local string
-	sprintf_s(m_filename,1024,filename);
+	sprintf(m_filename,filename);
 	
 	//Set movie parameters
 	m_AVIMOV_WIDTH=Width;	//Movie width

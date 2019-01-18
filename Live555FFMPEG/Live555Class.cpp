@@ -10,16 +10,14 @@
 
 
 //some includes
-#include "stdafx.h"
 #include "Live555Class.h"
 #include "Live_AnalysingServerMediaSubsession.h"
 #include <exception>
-#include "libavcodec\avcodec.h"
+#include "libavcodec/avcodec.h"
 
 // ==========================================================================
 Live555Class::Live555Class( FFMPEG * a_Encoder )
-	: mHandle( INVALID_HANDLE_VALUE )
-	, mID( 0 )
+	: mID( 0 )
 	, mStop( false )
 	, mReturnValue ( 0 )
 	, m_Encoder (a_Encoder)
@@ -40,7 +38,7 @@ void Live555Class::SetDefaultValues() {
 	RTSP_Address[0] = 0x00;
 
 	//Set stream description
-	strcpy_s(RTSP_Description, "Session streamed by \"IMC Server\"");
+	strcpy(RTSP_Description, "Session streamed by \"IMC Server\"");
 
 	SetRtpPortNum(20000);
 }
@@ -48,7 +46,7 @@ void Live555Class::SetDefaultValues() {
 // ==========================================================================
 Live555Class::~Live555Class()
 {
-	if ( mHandle != INVALID_HANDLE_VALUE )
+	if ( mHandle.joinable() )
 	{
 		Stop();
 	}
@@ -57,26 +55,26 @@ Live555Class::~Live555Class()
 // ==========================================================================
 void Live555Class::Start()
 {
-	mHandle = ::CreateThread(
-		NULL,				// Security attributes
-		0,					// Stack size, 0 is default
-		Link,				// Start address
-		this,				// Parameter
-		0,					// Creation flags
-		&mID );				// Thread ID
+//	mHandle = ::CreateThread(
+//		NULL,				// Security attributes
+//		0,					// Stack size, 0 is default
+//		Link,				// Start address
+//		this,				// Parameter
+//		0,					// Creation flags
+//		&mID );				// Thread ID
+	mHandle = std::thread(Link, this);
 }
 
 // ==========================================================================
 void Live555Class::Stop()
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+	ASSERT( mHandle.joinable() );
 	mStop = true;
 	Stop_RTSP_Loop=char(0xFF);
-	DWORD lRetVal = ::WaitForSingleObject( mHandle, 15000 );
-	ASSERT( lRetVal != WAIT_TIMEOUT  );
+	mHandle.join();
 
-	::CloseHandle( mHandle );
-	mHandle = INVALID_HANDLE_VALUE;
+//	::CloseHandle( mHandle );
+//	mHandle = INVALID_HANDLE_VALUE;
 
 	mID = 0;
 }
@@ -84,38 +82,33 @@ void Live555Class::Stop()
 // ==========================================================================
 void Live555Class::SetPriority( int aPriority )
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
-	::SetThreadPriority( mHandle, aPriority );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	::SetThreadPriority( mHandle, aPriority );
 }
 
 // ==========================================================================
 int Live555Class::GetPriority() const
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
-	return ::GetThreadPriority( mHandle );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	return ::GetThreadPriority( mHandle );
+	return 1;
 }
 
 // ==========================================================================
 bool Live555Class::IsStopping() const
 {
-	ASSERT( mHandle != INVALID_HANDLE_VALUE );
+//	ASSERT( mHandle != INVALID_HANDLE_VALUE );
 	return mStop;
 }
 
 // ==========================================================================
 bool Live555Class::IsDone()
 {
-	if ( ( mHandle == INVALID_HANDLE_VALUE ) ||
-		( mID == 0 ) )
-	{
-		return true;
-	}
-
-	return ( ::WaitForSingleObject( mHandle, 0 ) == WAIT_OBJECT_0 );
+	return mID == 0;
 }
 
 // ==========================================================================
-unsigned long WINAPI Live555Class::Link( void *aParam )
+unsigned long Live555Class::Link( void *aParam )
 {
 	Live555Class *lThis = reinterpret_cast<Live555Class *>( aParam );
 	lThis->mReturnValue = lThis->Function();
@@ -123,13 +116,13 @@ unsigned long WINAPI Live555Class::Link( void *aParam )
 }
 
 // ==========================================================================
-DWORD Live555Class::GetReturnValue()
+uint32_t Live555Class::GetReturnValue()
 {
 	return mReturnValue;
 }
 
 // ==========================================================================
-DWORD Live555Class::Function()
+uint32_t Live555Class::Function()
 {
 	//Main functions loop
 	//
@@ -139,14 +132,14 @@ DWORD Live555Class::Function()
 		if (mStop) {
 			break;
 		}
-		Sleep(5000);
+		std::this_thread::sleep_for(std::chrono::seconds(5));
 	}
 
 	return 0;
 }
 
 
-DWORD Live555Class::LiveSingleStart() {
+uint32_t Live555Class::LiveSingleStart() {
 
 	//Some inits
 	Stop_RTSP_Loop=0;
@@ -180,13 +173,14 @@ DWORD Live555Class::LiveSingleStart() {
 
 	// Create the RTSP server:
 	ServerMediaSession* sms;
-	UNREFERENCED_PARAMETER(sms);
+//	UNREFERENCED_PARAMETER(sms);
 
 
 	AnalyserInput* inputDevice;
 
 	if (rtspServer == NULL) {
 		//If the server cannot be initalised then exit
+		printf("Cannot start server on port %d\n", RTSPPort);
 		return 0;
 	}
 	else {

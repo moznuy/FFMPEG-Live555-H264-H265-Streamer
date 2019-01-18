@@ -4,7 +4,6 @@
 //    - Choose between multicast and unicast
 //==========================================================================
 
-#include "stdafx.h"
 #include "Definitions.h"
 #include "Live_AnalysingServerMediaSubsession.h"
 #include "FFMPEGClass.h"
