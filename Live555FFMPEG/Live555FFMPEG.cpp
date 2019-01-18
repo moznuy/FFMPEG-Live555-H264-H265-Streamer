@@ -53,7 +53,8 @@ int main(int argc, char* argv[])
 	*/
 
 	//Start Encoding and Streaming
-	mFFMPEG->SetRTSPPort(8555);
+	mFFMPEG->SetRTSPPort(8554);
+	mFFMPEG->SetUnicast();
 	mFFMPEG->Start();
 
 	struct sigaction sigIntHandler{};

@@ -1,10 +1,10 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 project(Test1)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_PREFIX_PATH "/home/lamar/ffmpeg_build")
-message(${CMAKE_PREFIX_PATH})
+message("Additional path: $ENV{FFMPEG_PATH}")
+set(CMAKE_PREFIX_PATH "$ENV{FFMPEG_PATH}")
 
 SET(live555example_HEADERS
         Live555FFMPEG/Definitions.h
@@ -72,12 +72,14 @@ target_compile_options(live555Example PRIVATE ${FFMPEG_CFLAGS_OTHER})
 
 
 # LIVE555
-target_link_options(live555Example PRIVATE -L/home/lamar/Live555/lib)
+message("LIVE555 path: $ENV{LIVE555}")
+message("LIVE555 path: $ENV{LIVE555}")
+target_link_options(live555Example PRIVATE -L$ENV{LIVE555}/lib)
 target_link_libraries(live555Example PRIVATE groupsock liveMedia BasicUsageEnvironment UsageEnvironment)
-target_include_directories(live555Example PRIVATE /home/lamar/Live555/include/BasicUsageEnvironment)
-target_include_directories(live555Example PRIVATE /home/lamar/Live555/include/groupsock)
-target_include_directories(live555Example PRIVATE /home/lamar/Live555/include/liveMedia)
-target_include_directories(live555Example PRIVATE /home/lamar/Live555/include/UsageEnvironment)
+target_include_directories(live555Example PRIVATE $ENV{LIVE555}/include/BasicUsageEnvironment)
+target_include_directories(live555Example PRIVATE $ENV{LIVE555}/include/groupsock)
+target_include_directories(live555Example PRIVATE $ENV{LIVE555}/include/liveMedia)
+target_include_directories(live555Example PRIVATE $ENV{LIVE555}/include/UsageEnvironment)
 
 ## Threads
 set(THREADS_PREFER_PTHREAD_FLAG ON)
